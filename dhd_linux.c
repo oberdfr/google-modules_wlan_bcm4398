@@ -4107,7 +4107,7 @@ dhd_logtrace_thread(void *data)
 		}
 	}
 exit:
-	complete_and_exit(&tsk->completed, 0);
+	kthread_complete_and_exit(&tsk->completed, 0);
 	dhdp->logtrace_thr_ts.complete_time = OSL_LOCALTIME_NS();
 }
 #else
@@ -4636,7 +4636,7 @@ dhd_watchdog_thread(void *data)
 		}
 	}
 
-	complete_and_exit(&tsk->completed, 0);
+	kthread_complete_and_exit(&tsk->completed, 0);
 }
 
 static void dhd_watchdog(ulong data)
@@ -4741,7 +4741,7 @@ dhd_rpm_state_thread(void *data)
 		}
 	}
 
-	complete_and_exit(&tsk->completed, 0);
+	kthread_complete_and_exit(&tsk->completed, 0);
 }
 
 static void dhd_runtimepm(ulong data)
@@ -4878,7 +4878,7 @@ dhd_dpc_thread(void *data)
 			break;
 		}
 	}
-	complete_and_exit(&tsk->completed, 0);
+	kthread_complete_and_exit(&tsk->completed, 0);
 }
 
 #ifdef BCMPCIE

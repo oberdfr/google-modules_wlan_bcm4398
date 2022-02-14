@@ -1164,7 +1164,7 @@ dhd_rxf_thread(void *data)
 			break;
 		}
 	}
-	complete_and_exit(&tsk->completed, 0);
+	kthread_complete_and_exit(&tsk->completed, 0);
 }
 
 void
@@ -1627,7 +1627,7 @@ dhd_rx_pktpool_thread(void *data)
 	}
 exit:
 	DHD_TRACE(("%s: EXITED...\n", __FUNCTION__));
-	complete_and_exit(&tsk->completed, 0);
+	kthread_complete_and_exit(&tsk->completed, 0);
 }
 
 void
