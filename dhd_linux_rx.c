@@ -168,6 +168,8 @@
 #include <dhd_wlfc.h>
 #endif
 
+#include <net/ndisc.h>
+
 #if defined(OEM_ANDROID)
 #include <wl_android.h>
 #endif
