@@ -3622,6 +3622,7 @@ static struct attribute *debug_dpc_bounds_attrs[] = {
 	&dhd_attr_ctrl_cpl_post_bound.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(debug_dpc_bounds);
 
 #define to_dhd_dpc_bounds(k) container_of(k, struct dhd_info, dhd_dpc_bounds_kobj)
 
@@ -3680,7 +3681,7 @@ static struct sysfs_ops dhd_sysfs_dpc_bounds_ops = {
 
 static struct kobj_type dhd_dpc_bounds_ktype = {
 	.sysfs_ops = &dhd_sysfs_dpc_bounds_ops,
-	.default_attrs = debug_dpc_bounds_attrs,
+	.default_groups = debug_dpc_bounds_groups,
 };
 
 /*
