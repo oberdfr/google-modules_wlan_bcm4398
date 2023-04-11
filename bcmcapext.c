@@ -1,7 +1,7 @@
 /*
  * wlu capext procesing. Shared between DHD and WLU tool.
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2023, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -108,6 +108,7 @@ static const capext_bitpos_to_string_map_t capext_bus_features_subfeature_map[] 
 	CAPEXT_SUBFEATURE_MAP(CAPEXT_BUS_FEATURE_BITPOS_HP2P, "hp2p"),
 	CAPEXT_SUBFEATURE_MAP(CAPEXT_BUS_FEATURE_BITPOS_PTM, "ptm"),
 	CAPEXT_SUBFEATURE_MAP(CAPEXT_BUS_FEATURE_BITPOS_PKTLAT, "pktlatency"),
+	CAPEXT_SUBFEATURE_MAP(CAPEXT_BUS_FEATURE_BITPOS_BUSTPUT, "bustput"),
 	CAPEXT_SUBFEATURE_MAP(CAPEXT_BUS_FEATURE_BITPOS_MAX, NULL)
 };
 
@@ -115,8 +116,8 @@ static const capext_bitpos_to_string_map_t capext_bus_features_subfeature_map[] 
  * Insert new entries in the array below in sorted order of output string to be printed
  */
 static const capext_bitpos_to_string_map_t capext_pktlat_subfeature_map[] = {
-	CAPEXT_SUBFEATURE_MAP(CAPEXT_PKTLAT_BITPOS_IPC, "ipc"),
-	CAPEXT_SUBFEATURE_MAP(CAPEXT_PKTLAT_BITPOS_META, "meta"),
+	CAPEXT_SUBFEATURE_MAP(CAPEXT_PKTLAT_BITPOS_IPC, "pktlat_ipc"),
+	CAPEXT_SUBFEATURE_MAP(CAPEXT_PKTLAT_BITPOS_META, "pktlat_meta"),
 	CAPEXT_SUBFEATURE_MAP(CAPEXT_PKTLAT_BITPOS_MAX, NULL)
 };
 
@@ -145,8 +146,9 @@ static const capext_bitpos_to_string_map_t capext_ecounters_subfeature_map[] = {
 	CAPEXT_SUBFEATURE_MAP(CAPEXT_ECOUNTERS_BITPOS_CHSTATS, "chstats"),
 	CAPEXT_SUBFEATURE_MAP(CAPEXT_ECOUNTERS_BITPOS_PHY_CAL, "phy_cal_ecounter"),
 	CAPEXT_SUBFEATURE_MAP(CAPEXT_ECOUNTERS_BITPOS_PHY, "phy_ecounter"),
-	CAPEXT_SUBFEATURE_MAP(CAPEXT_ECOUNTERS_BITPOS_PPSTATS, "ppstats"),
+	CAPEXT_SUBFEATURE_MAP(CAPEXT_ECOUNTERS_BITPOS_PEERSTATS, "peerstats"),
 	CAPEXT_SUBFEATURE_MAP(CAPEXT_ECOUNTERS_BITPOS_TXHIST, "txhist"),
+	CAPEXT_SUBFEATURE_MAP(CAPEXT_ECOUNTERS_BITPOS_DTIM_MISS, "dtim_miss"),
 	CAPEXT_SUBFEATURE_MAP(CAPEXT_ECOUNTERS_BITPOS_MAX, NULL)
 };
 
@@ -177,6 +179,7 @@ static const capext_bitpos_to_string_map_t capext_ap_subfeature_map[] = {
 	CAPEXT_SUBFEATURE_MAP(WLC_CAPEXT_AP_BITPOS_AX_5G_ONLY, "5g_he_ap"),
 	CAPEXT_SUBFEATURE_MAP(WLC_CAPEXT_AP_BITPOS_NONAX, "non_he_ap"),
 	CAPEXT_SUBFEATURE_MAP(WLC_CAPEXT_AP_BITPOS_SAE, "sae-ap"),
+	CAPEXT_SUBFEATURE_MAP(WLC_CAPEXT_AP_BITPOS_BCNPROT_AP, "bcnprot-ap"),
 	CAPEXT_SUBFEATURE_MAP(WLC_CAPEXT_AP_BITPOS_MAX, NULL)
 };
 
@@ -365,6 +368,9 @@ static const capext_bitpos_to_string_map_t capext_wl_features_subfeature_map[] =
 	CAPEXT_SUBFEATURE_MAP(WLC_CAPEXT_FEATURE_BITPOS_WNM, "wnm"),
 	CAPEXT_SUBFEATURE_MAP(WLC_CAPEXT_FEATURE_BITPOS_OCV, "ocv"),
 	CAPEXT_SUBFEATURE_MAP(WLC_CAPEXT_FEATURE_BITPOS_OCV_AP, "ocv_ap"),
+
+	CAPEXT_SUBFEATURE_MAP(WLC_CAPEXT_FEATURE_BITPOS_SAE_EXT, "sae_ext"),
+
 	CAPEXT_SUBFEATURE_MAP(WLC_CAPEXT_FEATURE_BITPOS_MAX, NULL)
 };
 
@@ -742,7 +748,7 @@ capext_print_caps(capext_output_buffer_ctx_t *ctx, char *outbuf, uint16 outbufle
 		 * translated as FW is new and WL tool is old.
 		 * The translation table is does not have enough entries to parse new bits
 		 */
-		sprintf(more_cap_str, "unknown:%u:%u-%u",
+		(void)snprintf(more_cap_str, sizeof(more_cap_str), "unknown:%u:%u-%u",
 			ctx->type, ctx->num_strings, ctx->last_cap_bit_pos);
 		ctx->cap_strs[ctx->num_items_populated] = more_cap_str;
 		ctx->num_items_populated++;
@@ -751,11 +757,11 @@ capext_print_caps(capext_output_buffer_ctx_t *ctx, char *outbuf, uint16 outbufle
 	while (i < ctx->num_items_populated) {
 		/* cap string size is actual string + space character */
 		cap_str_size = strlen(ctx->cap_strs[i]) + 1;
-		if ((clen + cap_str_size) > outbuflen) {
+		if (snprintf(outbuf, (outbuflen - clen), "%s ", ctx->cap_strs[i]) <
+			(int)cap_str_size) {
 			rc = BCME_BUFTOOSHORT;
 			break;
 		}
-		sprintf(outbuf, "%s ", ctx->cap_strs[i]);
 		clen += cap_str_size;
 		outbuf += cap_str_size;
 		i++;
