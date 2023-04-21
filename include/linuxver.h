@@ -972,6 +972,9 @@ static inline void do_gettimeofday(struct timeval *tv)
 /* From 5.10 kernel get/set_fs are obsolete and direct kernel_read/write operations can be used */
 #define GETFS_AND_SETFS_TO_KERNEL_DS(fs) BCM_REFERENCE(fs)
 #define SETFS(fs) BCM_REFERENCE(fs)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
+typedef struct {} mm_segment_t;
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) */
 
 #endif /* _linuxver_h_ */
