@@ -1,7 +1,7 @@
 /*
  * Linux cfg80211 Vendor Extension Code
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2023, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -107,6 +107,9 @@ typedef enum wifi_error {
 #define NAN_SID_ENABLE_FLAG_INVALID	0xff
 #define NAN_SID_BEACON_COUNT_INVALID	0xff
 #define WL_NAN_DW_INTERVAL 512
+
+#define WL_NAN_CMD_RESUME			0u
+#define WL_NAN_CMD_SUSPEND			1u
 
 #define CFG80211_VENDOR_CMD_REPLY_SKB_SZ	100
 #define CFG80211_VENDOR_EVT_SKB_SZ			2048
@@ -296,6 +299,8 @@ enum andr_vendor_subcmd {
 	NAN_WIFI_SUBCMD_DATA_PATH_SEC_INFO,					 /* 0x1710 */
 	NAN_WIFI_SUBCMD_VERSION_INFO,						 /* 0x1711 */
 	NAN_WIFI_SUBCMD_ENABLE_MERGE,						 /* 0x1712 */
+	NAN_WIFI_SUBCMD_SUSPEND,						 /* 0x1713 */
+	NAN_WIFI_SUBCMD_RESUME,							 /* 0x1714 */
 	APF_SUBCMD_GET_CAPABILITIES = ANDROID_NL80211_SUBCMD_PKT_FILTER_RANGE_START,
 	APF_SUBCMD_SET_FILTER,
 	APF_SUBCMD_READ_FILTER_DATA,
@@ -477,6 +482,8 @@ enum rtt_attributes {
 	RTT_ATTRIBUTE_RESULT_CNT		= 32,
 	RTT_ATTRIBUTE_RESULT			= 33,
 	RTT_ATTRIBUTE_RESULT_DETAIL		= 34,
+	RTT_ATTRIBUTE_RESULT_FREQ		= 35,
+	RTT_ATTRIBUTE_RESULT_BW			= 36,
 	/* Add any new RTT_ATTRIBUTE prior to RTT_ATTRIBUTE_MAX */
 	RTT_ATTRIBUTE_MAX
 };
@@ -748,6 +755,7 @@ typedef enum wl_vendor_event {
 	BRCM_VENDOR_EVENT_RCC_FREQ_INFO = 46,
 	BRCM_VENDOR_EVENT_CONNECTIVITY_LOG = 47,
 	BRCM_VENDOR_EVENT_HAPD_TSF = 48,
+	GOOGLE_NAN_EVENT_SUSPENSION_STATUS = 49,
 	BRCM_VENDOR_EVENT_LAST
 } wl_vendor_event_t;
 
@@ -1089,7 +1097,8 @@ typedef enum {
 	ANDR_LSTAT_ATTRIBUTE_INVALID	= 0,
 	ANDR_LSTAT_ATTRIBUTE_NUM_RADIO	= 1,
 	ANDR_LSTAT_ATTRIBUTE_STATS_INFO	= 2,
-	ANDR_LSTAT_ATTRIBUTE_STATS_MAX	= 3
+	ANDR_ML_LSTAT_ATTRIBUTE_STATS_INFO = 3,
+	ANDR_LSTAT_ATTRIBUTE_STATS_MAX	= 4
 } LINK_STAT_ATTRIBUTE;
 
 typedef enum {

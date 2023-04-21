@@ -1,7 +1,7 @@
 /*
  * Linux DHD Bus Module for PCIE
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2023, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -261,7 +261,8 @@ typedef enum dhd_pcie_link_state {
 	DHD_PCIE_ALL_GOOD = 0,
 	DHD_PCIE_LINK_DOWN = 1,
 	DHD_PCIE_COMMON_BP_DOWN = 2,
-	DHD_PCIE_WLAN_BP_DOWN = 3
+	DHD_PCIE_WLAN_BP_DOWN = 3,
+	DHD_PCIE_LINK_RESET = 4
 } dhd_pcie_link_state_type_t;
 
 /* PCIe bus memory mapped regions for device memory accees */
@@ -855,7 +856,6 @@ extern bool dhdpcie_tcm_valid(dhd_bus_t *bus);
 extern void dhdpcie_pme_active(osl_t *osh, bool enable);
 extern bool dhdpcie_pme_cap(osl_t *osh);
 extern uint32 dhdpcie_lcreg(osl_t *osh, uint32 mask, uint32 val);
-extern void dhdpcie_set_pmu_min_res_mask(struct dhd_bus *bus, uint min_res_mask);
 extern uint8 dhdpcie_clkreq(osl_t *osh, uint32 mask, uint32 val);
 extern int dhdpcie_disable_irq(dhd_bus_t *bus);
 extern int dhdpcie_disable_irq_nosync(dhd_bus_t *bus);
@@ -1102,4 +1102,14 @@ int dhd_pcie_nci_wrapper_dump(dhd_pub_t *dhd);
 int dhd_bus_get_armca7_pc(struct dhd_bus *bus, bool loop_print);
 void dhd_bt_dwnld_pwr_req(dhd_bus_t *bus);
 void dhd_bt_dwnld_pwr_req_clear(dhd_bus_t *bus);
+
+void dhd_validate_pcie_link_cbp_wlbp(dhd_bus_t *bus);
+
+uint32 dhdpcie_cfg_indirect_bpaccess(struct dhd_bus *bus, uint32 addr, bool read, uint value);
+int dhdpcie_get_cbaon_coredumps(struct dhd_bus *bus);
+void dhd_dump_intr_counters(dhd_pub_t *dhd, struct bcmstrbuf *strbuf);
+
+/* Host Platform quirk callbacks */
+extern void dhdpcie_set_pmu_min_res_mask(void *bus, uint min_res_mask);
+extern int dhdpcie_skip_xorcsum_request(void *dhd_bus_p);
 #endif /* dhd_pcie_h */

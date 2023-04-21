@@ -1,7 +1,7 @@
 /*
  * Linux DHD Bus Module for PCIE
  *
- * Copyright (C) 2022, Broadcom.
+ * Copyright (C) 2023, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -1806,6 +1806,10 @@ dhdpcie_pci_stop(struct pci_dev *pdev)
 		dhdpcie_bus_release(bus);
 	}
 
+#ifdef BOARD_STB
+	/* For STB, it is causing kernel panic during reboot when ep is accessed after devreset */
+	DHD_PRINT(("%s: Skip EP disable after devreset\n", __FUNCTION__));
+#else
 	/*
 	 * For module type driver,
 	 * it needs to back up configuration space before rmmod
@@ -1816,6 +1820,8 @@ dhdpcie_pci_stop(struct pci_dev *pdev)
 
 	if (pci_is_enabled(pdev))
 		pci_disable_device(pdev);
+#endif /* BOARD_STB */
+
 #ifdef BCMPCIE_OOB_HOST_WAKE
 	/* pcie os info detach */
 	MFREE(osh, pch->os_cxt, sizeof(dhdpcie_os_info_t));
@@ -2313,6 +2319,17 @@ int dhdpcie_init(struct pci_dev *pdev)
 		}
 #endif /* DHD_SET_PCIE_DMA_MASK_FOR_GS101 */
 
+#ifdef BOARD_STB
+#define DHD_PCIE_DMA_MASK_FOR_STB 64
+		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_STB)) ||
+			pci_set_consistent_dma_mask(pdev,
+				DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_STB))) {
+			DHD_ERROR(("%s: DMA set %d bit mask failed.\n",
+				__FUNCTION__, DHD_PCIE_DMA_MASK_FOR_STB));
+			return -EINVAL;
+		}
+#endif /* BOARD_STB */
+
 #ifdef DHD_WAKE_STATUS
 		/* Initialize pkt_wake_lock */
 		spin_lock_init(&dhdpcie_info->pkt_wake_lock);
@@ -2333,6 +2350,8 @@ int dhdpcie_init(struct pci_dev *pdev)
 			DHD_ERROR(("%s:dhdpcie_bus_attach() failed\n", __FUNCTION__));
 			break;
 		}
+
+		dhd_plat_get_rc_port_dev_details(bus->dhd->plat_info, pdev);
 
 		dhdpcie_info->bus = bus;
 		bus->bar1_size = dhdpcie_info->bar1_size;
@@ -3000,6 +3019,7 @@ int dhdpcie_get_oob_irq_level(void)
 #endif /* CONFIG_BCMDHD_GET_OOB_STATE */
 	return gpio_level;
 }
+
 #ifdef PRINT_WAKEUP_GPIO_STATUS
 int dhdpcie_get_oob_gpio_number(void)
 {
@@ -3010,6 +3030,7 @@ int dhdpcie_get_oob_gpio_number(void)
 	return gpio_number;
 }
 #endif /* PRINT_WAKEUP_GPIO_STATUS */
+
 int dhdpcie_get_oob_irq_status(struct dhd_bus *bus)
 {
 	dhdpcie_info_t *pch;
@@ -3216,11 +3237,11 @@ int dhdpcie_oob_intr_register(dhd_bus_t *bus)
 		 * ENXIO (No such device or address). This is because the callback function
 		 * irq_set_wake() is not registered in kernel, hence returning BCME_OK.
 		 */
-#ifdef BOARD_HIKEY
+#if defined(BOARD_HIKEY) || defined (BOARD_STB)
 		DHD_PRINT(("%s: continue eventhough enable_irq_wake failed: %d\n",
 				__FUNCTION__, err));
 		err = BCME_OK;
-#endif /* BOARD_HIKEY */
+#endif /* BOARD_HIKEY || BOARD_STB */
 		}
 		dhdpcie_osinfo->oob_irq_enabled = TRUE;
 	}
