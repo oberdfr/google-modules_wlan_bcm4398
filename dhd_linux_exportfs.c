@@ -3823,6 +3823,7 @@ static struct attribute *debug_logger_attrs[] = {
 	&dhd_logger_attr_route_events.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(debug_logger);
 
 #define to_dhd_logger(k) container_of(k, struct dhd_info, dhd_logger_kobj)
 
@@ -3881,7 +3882,7 @@ static struct sysfs_ops dhd_sysfs_logger_ops = {
 
 static struct kobj_type dhd_logger_ktype = {
 	.sysfs_ops = &dhd_sysfs_logger_ops,
-	.default_attrs = debug_logger_attrs,
+	.default_groups = debug_logger_groups,
 };
 
 /*
