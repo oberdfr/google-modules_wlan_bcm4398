@@ -56,10 +56,13 @@
 
 #define SCAN_PARAMS_VER_2    2u
 #define SCAN_PARAMS_VER_3    3u
+#define SCAN_PARAMS_VER_4    4u
 /* SCAN_PARAMS V3 and V2 have same size. so use V3 with appriate version param */
 #define IS_SCAN_PARAMS_V3_V2(cfg) (((cfg->scan_params_ver == SCAN_PARAMS_VER_3) || \
 			(cfg->scan_params_ver == SCAN_PARAMS_VER_2)) ? TRUE : FALSE)
 #define IS_SCAN_PARAMS_V3(cfg) ((cfg->scan_params_ver == SCAN_PARAMS_VER_3) ? \
+				TRUE : FALSE)
+#define IS_SCAN_PARAMS_V4(cfg) ((cfg->scan_params_ver == SCAN_PARAMS_VER_4) ? \
 				TRUE : FALSE)
 
 extern s32 wl_escan_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
@@ -229,6 +232,16 @@ int get_roam_channel_list(struct bcm_cfg80211 *cfg, chanspec_t target_chan, chan
 	int n_channels, const wlc_ssid_t *ssid, int ioctl_ver);
 void set_roam_band(int band);
 #endif /* ESCAN_CHANNEL_CACHE */
+#ifdef WL_DYNAMIC_CHAN_POLICY
 extern s32 wl_cfgscan_update_dynamic_channels(struct bcm_cfg80211 *cfg,
 		struct net_device *ndev, bool linkup);
+#endif /* WL_DYNAMIC_CHAN_POLICY */
+extern bool wl_is_5g_restricted(struct bcm_cfg80211 *cfg, chanspec_t chspec);
+extern bool wl_is_6g_restricted(struct bcm_cfg80211 *cfg, chanspec_t chspec);
+extern bool wl_is_2g_restricted(struct bcm_cfg80211 *cfg, chanspec_t chspec);
+#define WL_MLO_PRMRY_NON_SLEEPABLE
+extern bool wl_is_link_sleepable(struct bcm_cfg80211 *cfg, chanspec_t pri_chspec,
+	chanspec_t target_chspec);
+extern bool wl_cfgscan_chaninfo_restricted(struct bcm_cfg80211 *cfg,
+		struct net_device *dev, u32 chan_info, chanspec_t chspec);
 #endif /* _wl_cfgscan_h_ */

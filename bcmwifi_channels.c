@@ -31,7 +31,6 @@
 #ifdef BCMDRIVER
 #include <osl.h>
 #define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
-#define tolower(c) (bcm_isupper((c)) ? ((c) + 'a' - 'A') : (c))
 #else
 #include <stdio.h>
 #include <stdlib.h>
@@ -1099,7 +1098,7 @@ wf_chanspec_iter_init(wf_chanspec_iter_t *iter, chanspec_band_t band, chanspec_b
 	 * If the validation fails then the iterator will return INVCHANSPEC as the current
 	 * chanspec, and wf_chanspec_iter_next() will return FALSE.
 	 */
-	memset(iter, 0, sizeof(*iter));
+	bzero(iter, sizeof(*iter));
 	iter->state = WF_ITER_DONE;
 	iter->chanspec = INVCHANSPEC;
 

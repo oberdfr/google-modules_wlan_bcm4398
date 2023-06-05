@@ -46,6 +46,10 @@
 #include<linux/regulator/consumer.h>
 #include<linux/of_gpio.h>
 #endif /* CONFIG_DTS */
+#ifdef WBRC
+#include <wb_regon_coordinator.h>
+#endif /* WBRC */
+
 #define WIFI_PLAT_NAME		"bcmdhd_wlan"
 #define WIFI_PLAT_NAME2		"bcm4329_wlan"
 #define WIFI_PLAT_EXT		"bcmdhd_wifi_platform"
@@ -182,6 +186,18 @@ int wifi_platform_get_irq_number(wifi_adapter_info_t *adapter, unsigned long *ir
 int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long msec)
 {
 	int err = 0;
+	struct wifi_platform_data *plat_data;
+
+	BCM_REFERENCE(plat_data);
+
+#ifdef WBRC_HW_QUIRKS
+	if (on) {
+		wl2wbrc_wlan_before_regon();
+	} else {
+		wl2wbrc_wlan_before_regoff();
+	}
+#endif /* WBRC_HW_QUIRKS */
+
 #ifdef CONFIG_DTS
 	if (on) {
 		err = regulator_enable(wifi_regulator);
@@ -194,8 +210,6 @@ int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long
 	if (err < 0)
 		DHD_ERROR(("%s: regulator enable/disable failed", __FUNCTION__));
 #else
-	struct wifi_platform_data *plat_data;
-
 	if (!adapter || !adapter->wifi_plat_data)
 		return -EINVAL;
 	plat_data = adapter->wifi_plat_data;
@@ -233,6 +247,15 @@ int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long
 		is_power_on = FALSE;
 
 #endif /* CONFIG_DTS */
+
+#ifdef WBRC_HW_QUIRKS
+	if (on) {
+		wl2wbrc_wlan_after_regon();
+	} else {
+		wl2wbrc_wlan_after_regoff();
+	}
+#endif /* WBRC_HW_QUIRKS */
+
 
 	return err;
 }
@@ -318,11 +341,11 @@ void *wifi_platform_get_country_code(wifi_adapter_info_t *adapter, char *ccode)
 
 static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 {
-	struct resource *resource;
 	wifi_adapter_info_t *adapter;
 #ifdef CONFIG_DTS
 	int irq, gpio;
 #endif /* CONFIG_DTS */
+	int wlan_irq;
 
 	/* Android style wifi platform data device ("bcmdhd_wlan" or "bcm4329_wlan")
 	 * is kept for backward compatibility and supports only 1 adapter
@@ -332,12 +355,12 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	adapter = &dhd_wifi_platdata->adapters[0];
 	adapter->wifi_plat_data = (struct wifi_platform_data *)(pdev->dev.platform_data);
 
-	resource = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "bcmdhd_wlan_irq");
-	if (resource == NULL)
-		resource = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "bcm4329_wlan_irq");
-	if (resource) {
-		adapter->irq_num = resource->start;
-		adapter->intr_flags = resource->flags & IRQF_TRIGGER_MASK;
+	wlan_irq = platform_get_irq_byname(pdev, "bcmdhd_wlan_irq");
+	if (wlan_irq < 0)
+		wlan_irq = platform_get_irq_byname(pdev, "bcm4329_wlan_irq");
+	if (wlan_irq >= 0) {
+		adapter->irq_num = wlan_irq;
+		adapter->intr_flags = irq_get_trigger_type(wlan_irq);
 #ifdef DHD_ISR_NO_SUSPEND
 		adapter->intr_flags |= IRQF_NO_SUSPEND;
 #endif
@@ -602,6 +625,14 @@ void wifi_ctrlfunc_unregister_drv(void)
 #ifdef BCMDHD_MODULAR
 	dhd_wlan_deinit();
 	osl_static_mem_deinit(NULL, NULL);
+#if defined(WBRC)
+	/* though wbrc_init is called in dhd_attach, wbrc_exit is called
+	 * here instead of dhd_detach. This is due to the
+	 * wifi_platform_set_power call just above which can call into
+	 * wbrc.
+	 */
+	wbrc_exit();
+#endif /* WBRC */
 #endif /* BCMDHD_MODULAR */
 
 #endif /* !defined(CONFIG_DTS) */

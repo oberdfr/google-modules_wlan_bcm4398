@@ -98,8 +98,9 @@ typedef struct chip_rev_table {
 } chip_rev_table_t;
 
 chip_rev_table_t chip_revs[] = {
-	{0x4383, {"a0", "b0", "c0", "d0", "\0", "\0", "\0", "\0", "\0", "\0"}},
+	{0x4383, {"a0", "a1", "a3", "\0", "\0", "\0", "\0", "\0", "\0", "\0"}},
 	{0x4398, {"a0", "b0", "c0", "d0", "\0", "\0", "\0", "\0", "\0", "\0"}},
+	{0x4390, {"a0", "\0", "\0", "\0", "\0", "\0", "\0", "\0", "\0", "\0"}},
 	/* 4389 - not yet supported for now */
 	{0x4389, {"\0", "\0", "\0", "\0", "\0", "\0", "\0", "\0", "\0", "\0"}},
 };
@@ -142,6 +143,12 @@ vid_info_t vid_naming_table_4398[] = {
 	{ 3, { 0x55, 0x98, }, { "_USI_G5RN_9855_V15" } },
 	{ 3, { 0x55, 0x99, }, { "_USI_G5SN_9955_V15" } },
 	{ 3, { 0x57, 0x99, }, { "_USI_G5SN_9957_V17" } },
+};
+
+vid_info_t vid_naming_table_4390[] = {
+	/* 4390a0 */
+	{ 3, { 0x10, 0x63, }, { "_USI_G6BB_6310_V10" } },
+	{ 3, { 0x11, 0x63, }, { "_USI_G6BB_6311_V11" } },
 };
 
 #ifdef DHD_USE_CISINFO
@@ -864,6 +871,9 @@ dhd_get_fw_nvram_names(dhd_pub_t *dhdp, uint chipid, uint chiprev,
 			memcpy_s(chip_revstr, MAX_REVSTRING,
 				chip_revs[i].chip_revstr[chiprev], MAX_REVSTRING);
 			chiprev_found = TRUE;
+			DHD_PRINT(("%s, chiprev string(%s) found for chipid:0x%x "
+				"chiprev:0x%x\n",
+				__FUNCTION__, chip_revstr, chipid, chiprev));
 			snprintf(nv_ext, MAX_EXTENSION, "_%x_%s", chipid, chip_revstr);
 			snprintf(fw_ext, MAX_EXTENSION, "_%x_%s", chipid, chip_revstr);
 			break;
@@ -895,6 +905,10 @@ dhd_get_fw_nvram_names(dhd_pub_t *dhdp, uint chipid, uint chiprev,
 			case BCM4397_CHIP_GRPID:
 				vid_info = vid_naming_table_4398;
 				vid_info_sz = ARRAYSIZE(vid_naming_table_4398);
+				break;
+			case BCM4390_CHIP_GRPID:
+				vid_info = vid_naming_table_4390;
+				vid_info_sz = ARRAYSIZE(vid_naming_table_4390);
 				break;
 			default:
 				DHD_ERROR(("%s: unrecognized chip id 0x%x !\n",

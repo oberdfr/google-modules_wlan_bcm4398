@@ -398,6 +398,16 @@ BWL_PRE_PACKED_STRUCT struct dot11y_action_ext_csa {
 	struct dot11_csa_body b;	/* body of the ie */
 } BWL_POST_PACKED_STRUCT;
 
+/** Max Channel Switch Time param */
+typedef BWL_PRE_PACKED_STRUCT struct dot11_max_ie_cst {
+	uint8 id;
+	uint8 len;
+	uint8 id_ext;
+	uint8 switch_time[3];		/**< Max time delta */
+} BWL_POST_PACKED_STRUCT dot11_max_cst_ie_t;
+
+#define DOT11_MAX_CST_IE_LEN	4	/* length of Max Channel Switch Time IE body */
+
 /* TPE Transmit Power Information Field */
 #define DOT11_TPE_INFO_MAX_TX_PWR_CNT_MASK               0x07u
 #define DOT11_TPE_INFO_MAX_TX_PWR_INTRPN_MASK            0x38u
@@ -1556,6 +1566,8 @@ enum dot11_tag_ids {
 #define DOT11_MNG_SRPS_ID			(DOT11_MNG_ID_EXT_ID + EXT_MNG_SRPS_ID)
 #define EXT_MNG_BSSCOLOR_CHANGE_ID		42u	/* BSS Color Change Announcement */
 #define DOT11_MNG_BSSCOLOR_CHANGE_ID		(DOT11_MNG_ID_EXT_ID + EXT_MNG_BSSCOLOR_CHANGE_ID)
+#define EXT_MNG_MAX_CST_ID			52u	/* Max channel switch time */
+#define DOT11_MNG_MAX_CST_ID			(DOT11_MNG_ID_EXT_ID + EXT_MNG_MAX_CST_ID)
 #define OCV_EXTID_MNG_OCI_ID			54u     /* OCI element */
 #define DOT11_MNG_OCI_ID			(DOT11_MNG_ID_EXT_ID + OCV_EXTID_MNG_OCI_ID)
 #define EXT_MNG_NON_INHERITANCE_ID		56u     /* Non-Inheritance element */
@@ -1620,8 +1632,13 @@ enum dot11_tag_ids {
 #define EXT_MNG_AKM_SUITE_SELECTOR_ID		114u	/* AKM Suite Selector */
 #define DOT11_MNG_AKM_SUITE_SELECTOR_ID		(DOT11_MNG_ID_EXT_ID + \
 						 EXT_MNG_AKM_SUITE_SELECTOR_ID)
+/* Draft 802.11be D3.0 Table 9-128 Element IDs */
+#define EXT_MNG_MLO_LINK_INFO_ID		133u	/* MLO Link Information */
+#define DOT11_MNG_MLO_LINK_INFO_ID		(DOT11_MNG_ID_EXT_ID + EXT_MNG_MLO_LINK_INFO_ID)
 #define EXT_MNG_AID_BITMAP_ID			134u	/* AID Bitmap */
 #define DOT11_MNG_AID_BITMAP_ID			(DOT11_MNG_ID_EXT_ID + EXT_MNG_AID_BITMAP_ID)
+#define EXT_MNG_BW_IND_ID			135u	/* Bandwidth Indication */
+#define DOT11_MNG_BW_IND_ID			(DOT11_MNG_ID_EXT_ID + EXT_MNG_BW_IND_ID)
 
 /* deprecated definitions, do not use, to be deleted later */
 #define FILS_HLP_CONTAINER_EXT_ID		FILS_EXTID_MNG_HLP_CONTAINER_ID
@@ -2090,8 +2107,8 @@ typedef struct dot11_mscs_subelement dot11_mscs_subelement_t;
 #define DOT11_SCS_REQ_TYPE_REMOVE	1u
 #define DOT11_SCS_REQ_TYPE_CHANGE	2u
 
-/* 9.4.2.316 QoS Characteristics element in Draft P802.11be_D2.2
- * Figure 9-1002as Control Info field in Draft P802.11be_D2.2
+/* 9.4.2.316 QoS Characteristics element in Draft P802.11be_D3.0
+ * Figure 9-1002as Control Info field in Draft P802.11be_D3.0
  */
 #define DOT11_QOS_CHAR_DATA_RATE_LEN	3u
 #define DOT11_QOS_CHAR_DELAY_BOUND_LEN	3u
@@ -2117,17 +2134,21 @@ BWL_PRE_PACKED_STRUCT struct dot11_qos_char_ie {
 								 */
 	uint8 delay_bound[DOT11_QOS_CHAR_DELAY_BOUND_LEN];	/* Delay Bound in microseconds */
 	uint8  data[];
-	/* optional Maximum MSDU Size */
+	/* optional Maxmimum MSDU Size */
 	/* optional Service Start Time */
 	/* optional Service Start Time LinkID */
 	/* optional Mean Data Rate */
 	/* optional Burst Size */
 	/* optional MSDU Lifetime */
-	/* optional MSDU Delivery Ratio */
-	/* optional MSDU Count Exponent */
+	/* optional MSDU Delivery Info */
 	/* optional Medium Time */
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_qos_char_ie dot11_qos_char_ie_t;
+#define DOT11_SCS_QOS_CHAR_IE_LEN	19u	/* Fixed length, exludes id and len */
+#define DOT11_SCS_QOS_CHAR_IE_HDR_LEN	21u	/* Entire dot11_qos_char_ie header
+						 * length (fixed fields)
+						 */
+
 
 /** SCS Descriptor element */
 BWL_PRE_PACKED_STRUCT struct dot11_scs_descr_ie {

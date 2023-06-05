@@ -381,17 +381,17 @@ typedef struct timer_list timer_list_compat_t;
 
 typedef struct timer_list_compat {
 	struct timer_list timer;
-	void *arg;
+	ulong arg;
 	void (*callback)(ulong arg);
 } timer_list_compat_t;
 
 extern void timer_cb_compat(struct timer_list *tl);
 
 #define init_timer_compat(timer_compat, cb, priv) \
-	(timer_compat)->arg = priv; \
+	(timer_compat)->arg = (ulong)priv; \
 	(timer_compat)->callback = cb; \
 	timer_setup(&(timer_compat)->timer, timer_cb_compat, 0);
-#define timer_set_private(timer_compat, priv) (timer_compat)->arg = priv
+#define timer_set_private(timer_compat, priv) (timer_compat)->arg = (ulong)priv
 #define timer_expires(timer_compat) (timer_compat)->timer.expires
 
 #define del_timer(t) del_timer(&((t)->timer))
@@ -972,6 +972,9 @@ static inline void do_gettimeofday(struct timeval *tv)
 /* From 5.10 kernel get/set_fs are obsolete and direct kernel_read/write operations can be used */
 #define GETFS_AND_SETFS_TO_KERNEL_DS(fs) BCM_REFERENCE(fs)
 #define SETFS(fs) BCM_REFERENCE(fs)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
+typedef struct {} mm_segment_t;
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) */
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) */
 
 #endif /* _linuxver_h_ */

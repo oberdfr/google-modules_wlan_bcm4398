@@ -90,8 +90,6 @@
 #define NAME_TO_STR(name) #name
 #define NAN_ID_CTRL_SIZE ((NAN_MAXIMUM_ID_NUMBER/8) + 1)
 
-#define tolower(c) bcm_tolower(c)
-
 #define NMR2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5], (a)[6], (a)[7]
 #define NMRSTR "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
 
@@ -671,6 +669,10 @@ typedef struct nan_hal_capabilities {
 	uint32 max_subscribe_address;
 	uint32 ndpe_attr_supported;
 	bool is_instant_mode_supported;
+	bool is_6g_supported;
+	bool is_he_supported;
+	bool is_pairing_supported;
+	bool is_set_cluster_id_supported;
 	bool is_suspension_supported;
 } nan_hal_capabilities_t;
 

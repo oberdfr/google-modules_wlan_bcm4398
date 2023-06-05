@@ -119,6 +119,8 @@ typedef struct memuse_info {
 } memuse_info_t;
 
 #define RTE_POOLUSEINFO_VER 0x01
+#define RTE_POOLUSEINFO_VER2 0x02
+
 typedef struct pooluse_info {
 	uint16 ver;				/* version of this struct */
 	uint16 len;				/* length in bytes of this structure */
@@ -170,6 +172,10 @@ typedef struct pooluse_info {
 
 	uint32 total_size;			/* pktpool total size in bytes */
 	uint32 total_overhead;			/* pktpool total with overhead */
+
+	uint32 urb_main_sz;			/* URB memory used for main core. */
+	uint32 urb_aux_sz;			/* URB memory used for aux core. */
+	uint32 inuse_sz_bm;			/* Total Bootmem size used. */
 } pooluse_info_t;
 
 typedef struct memuse_ext_info {
@@ -353,109 +359,5 @@ enum dsec_sboot_xtlv_id {
 	DSEC_OTP_XTLV_SBOOT_ENCRYPTION_KEY	= 28u,	/* AES wrapped fw encryption key 320 bits */
 	DSEC_OTP_XTLV_SBOOT_LOT_NUM_MS		= 29u,	/* Chip lot num high bits [17:47] 31 bits */
 	DSEC_OTP_XTLV_SBOOT_OTP_WR_LOCK_ENAB	= 30u,	/* OTP write lock enable bit */
-};
-
-#define CAPEXT_INFO_VERSION_1	(1u)
-#define CAPEXT_INFO_VERSION	CAPEXT_INFO_VERSION_1
-
-/* Top structure of capext reporting. For reporting, feature ids are used as types in XTLVs */
-typedef struct {
-	uint16	version;	/**< see definition of CAPEXT_INFO_VERSION */
-	uint16	datalen;	/**< length of data including all paddings. */
-	uint8   data [];	/**< variable length payload:
-				 * 1 or more bcm_xtlv_t type of tuples.
-				 * each tuple is padded to multiple of 4 bytes.
-				 * 'datalen' field of this structure includes all paddings.
-				 */
-} capext_info_t;
-
-/* Each feature reported in capext has a feature id. Feature id is a 16-bit value.
- * The feature id namespace is split into 3 partitions. One for BUS, the second for RTE,
- * and the third for WL. All partitions are contiguous and fixed in size
- */
-#define CAPEXT_FEATURE_ID_NUM_PARTITIONS	(3u)
-#define CAPEXT_FEATURE_ID_PARTITION_SIZE	(1024u)
-/* Feature IDs from 3072 for capext are reserved */
-#define CAPEXT_RSVD_FEATURE_ID_BASE		(3072u)
-
-/* Bus partition */
-/* The features listed in the enumeration below have subfeatures.
- * If a new feature is added/updated and that feature has sub-features that need to be reported,
- * add that feature here
- */
-#define CAPEXT_BUS_FEATURE_ID_BASE		(0)
-enum capext_bus_feature_ids {
-	CAPEXT_BUS_FEATURE_RSVD		= (CAPEXT_BUS_FEATURE_ID_BASE + 0),
-	/* BUS top level feature id to hold and report bitmaps of features with and
-	 * without sub-features.
-	 */
-	CAPEXT_BUS_FEATURE_BUS_FEATURES	= (CAPEXT_BUS_FEATURE_ID_BASE + 1),
-	/* BUS feature ids below hold and report sub-feature bitmaps of some features
-	 * mentioned in top level feature id bitmap
-	 */
-	CAPEXT_BUS_FEATURE_PKTLAT	= (CAPEXT_BUS_FEATURE_ID_BASE + 2),
-	CAPEXT_BUS_FEATURE_MAX
-};
-
-/* BUS features bit positions in top level rte feature id. Features mentioned below are reported */
-enum capext_bus_feature_bitpos {
-	CAPEXT_BUS_FEATURE_BITPOS_HP2P		= 0,
-	CAPEXT_BUS_FEATURE_BITPOS_PTM		= 1,
-	CAPEXT_BUS_FEATURE_BITPOS_PKTLAT	= 2,
-	CAPEXT_BUS_FEATURE_BITPOS_BUSTPUT	= 3,	/* feature with sub-features */
-	CAPEXT_BUS_FEATURE_BITPOS_MAX
-};
-
-/* Packet latency sub-feature bit positions. These sub-features need to be reported */
-enum capext_pktlat_subfeature_bitpos {
-	CAPEXT_PKTLAT_BITPOS_META	= 0,
-	CAPEXT_PKTLAT_BITPOS_IPC	= 1,
-	CAPEXT_PKTLAT_BITPOS_MAX
-};
-
-/* RTE partition */
-/* The features listed in the enumeration below have subfeatures.
- * If a new feature is added and that feature has sub-features that need to be reported,
- * add that feature here
- */
-#define CAPEXT_RTE_FEATURE_ID_BASE		(1024u)
-enum capext_rte_feature_ids {
-	CAPEXT_RTE_FEATURE_RSVD		= (CAPEXT_RTE_FEATURE_ID_BASE + 0),
-	/* RTE top level feature id to hold and report bitmaps of features with and
-	 * without sub-features.
-	 */
-	CAPEXT_RTE_FEATURE_RTE_FEATURES	= (CAPEXT_RTE_FEATURE_ID_BASE + 1),
-	/* RTE feature ids below hold and report sub-feature bitmaps of some features
-	 * mentioned in top level feature id bitmap
-	 */
-	CAPEXT_RTE_FEATURE_ECOUNTERS	= (CAPEXT_RTE_FEATURE_ID_BASE + 2),
-	CAPEXT_RTE_FEATURE_MAX
-};
-
-/* Ecounters sub-feature bit positions. These sub-features need to be reported */
-enum capext_ecounters_subfeature_bitpos {
-	CAPEXT_ECOUNTERS_BITPOS_TXHIST		= 0,
-	CAPEXT_ECOUNTERS_BITPOS_ADV		= 1,
-	CAPEXT_ECOUNTERS_BITPOS_PHY		= 2,
-	CAPEXT_ECOUNTERS_BITPOS_PHY_CAL		= 3,
-	CAPEXT_ECOUNTERS_BITPOS_CHSTATS		= 4,
-	CAPEXT_ECOUNTERS_BITPOS_PEERSTATS	= 5,
-	CAPEXT_ECOUNTERS_BITPOS_DTIM_MISS	= 6,
-	CAPEXT_ECOUNTERS_BITPOS_MAX
-};
-
-/* RTE features bit positions in top level rte feature id. Features mentioned below are reported */
-enum capext_rte_feature_bitpos {
-	CAPEXT_RTE_FEATURE_BITPOS_H2D_LOG_TIME_SYNC	= 0,
-	CAPEXT_RTE_FEATURE_BITPOS_HWRNG			= 1,
-	CAPEXT_RTE_FEATURE_BITPOS_SPMI			= 2,
-	CAPEXT_RTE_FEATURE_BITPOS_ECOUNTERS		= 3,	/* feature with sub-features */
-	CAPEXT_RTE_FEATURE_BITPOS_EVENT_LOG		= 4,
-
-	CAPEXT_RTE_FEATURE_BITPOS_LOGTRACE		= 5,
-	CAPEXT_RTE_FEATURE_BITPOS_HCHK			= 6,
-	CAPEXT_RTE_FEATURE_BITPOS_SMD			= 7,
-	CAPEXT_RTE_FEATURE_BITPOS_ETD			= 8,
-	CAPEXT_RTE_FEATURE_BITPOS_MAX
 };
 #endif /* _dngl_ioctl_h_ */

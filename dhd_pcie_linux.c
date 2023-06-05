@@ -87,9 +87,9 @@
 
 #include <dhd_plat.h>
 
-#if defined(WBRC) && defined(WBRC_TEST)
+#if defined(WBRC)
 #include <wb_regon_coordinator.h>
-#endif /* WBRC && WBRC_TEST */
+#endif /* WBRC */
 
 #define PCI_CFG_RETRY		10		/* PR15065: retry count for pci cfg accesses */
 #define OS_HANDLE_MAGIC		0x1234abcd	/* Magic # to recognize osh */
@@ -341,8 +341,8 @@ static int dhdpcie_smmu_init(struct pci_dev *pdev, void *smmu_cxt)
 
 	DHD_PRINT(("%s : SMMU init start\n", __FUNCTION__));
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) ||
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)) ||
+		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
 		DHD_ERROR(("%s: DMA set 64bit mask failed.\n", __FUNCTION__));
 		return -EINVAL;
 	}
@@ -1710,7 +1710,9 @@ dhdpcie_bus_unregister(void)
 		if (dhdp->dongle_isolation == FALSE)
 #endif /* OEM_ANDROID */
 		{
-			dhdpcie_pci_suspend_resume(dhdp->bus, FALSE);
+			dhd_bus_resume(dhdp, 1);
+			/* Do force devreset here, as F0 FLR is must before pulling WL_REG_ON low */
+			dhd_bus_devreset(dhdp, TRUE);
 		}
 	} else {
 		DHD_GENERAL_UNLOCK(dhdp, flags);
@@ -2242,6 +2244,10 @@ int dhdpcie_init(struct pci_dev *pdev)
 	dhdpcie_smmu_info_t	*dhdpcie_smmu_info = NULL;
 #endif /* USE_SMMU_ARCH_MSM */
 	int ret = 0;
+#if defined(WBRC) && defined(BCMDHD_MODULAR)
+	int wbrc_ret = 0;
+	uint16 chipid = 0;
+#endif /* WBRC && BCMDHD_MODULAR */
 
 	do {
 		/* osl attach */
@@ -2310,8 +2316,8 @@ int dhdpcie_init(struct pci_dev *pdev)
 
 #ifdef DHD_SET_PCIE_DMA_MASK_FOR_GS101
 		/* S.SLSI PCIe DMA engine cannot support 64 bit bus address. Hence, set 36 bit */
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_GS101)) ||
-			pci_set_consistent_dma_mask(pdev,
+		if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_GS101)) ||
+			dma_set_coherent_mask(&pdev->dev,
 				DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_GS101))) {
 			DHD_ERROR(("%s: DMA set %d bit mask failed.\n",
 				__FUNCTION__, DHD_PCIE_DMA_MASK_FOR_GS101));
@@ -2448,12 +2454,28 @@ int dhdpcie_init(struct pci_dev *pdev)
 			bus->dhd->mac.octet[2] = 0x4C;
 		}
 
+#if defined(WBRC) && defined(BCMDHD_MODULAR)
+		wbrc_ret = wbrc_init();
+		chipid = dhd_get_chipid(bus);
+		BCM_REFERENCE(chipid);
+#endif /* WBRC && BCMDHD_MODULAR */
+
 		/* Attach to the OS network interface */
 		DHD_TRACE(("%s(): Calling dhd_register_if() \n", __FUNCTION__));
 		if (dhd_attach_net(bus->dhd, TRUE)) {
 			DHD_ERROR(("%s(): ERROR.. dhd_register_if() failed\n", __FUNCTION__));
 			break;
 		}
+
+#if defined(WBRC) && defined(BCMDHD_MODULAR)
+		if (!wbrc_ret) {
+#ifdef WBRC_HW_QUIRKS
+			wl2wbrc_wlan_init(bus->dhd, chipid);
+#else
+			wl2wbrc_wlan_init(bus->dhd);
+#endif /* WBRC_HW_QUIRKS */
+		}
+#endif /* WBRC && BCMDHD_MODULAR */
 
 		dhdpcie_init_succeeded = TRUE;
 #if defined(CONFIG_ARCH_MSM) && defined(CONFIG_SEC_PCIE_L1SS)
@@ -3747,6 +3769,7 @@ dhd_bus_check_driver_up(void)
 #define BT_BASE 0x19000000u
 #define ADDR_SIZE 4u
 
+#ifdef BT_FW_DWNLD
 #ifdef WBRC_TEST
 static bool
 dhd_bt_fw_verify_read_back(dhd_pub_t *dhdp, const char* buf, size_t len)
@@ -3875,4 +3898,5 @@ dhd_bt_fw_dwnld_blob(void *wl_hdl, char* buf, size_t len)
 
 	return ret;
 }
+#endif /* BT_FW_DWNLD */
 #endif /* WBRC */
