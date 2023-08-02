@@ -52,6 +52,7 @@
 #include <pcie_core.h>
 #include <bcmpcie.h>
 #include <dhd_pcie.h>
+#include <dhd_plat.h>
 #ifdef DHD_TIMESYNC
 #include <dhd_timesync.h>
 #endif /* DHD_TIMESYNC */
@@ -8172,10 +8173,21 @@ BCMFASTPATH(dhd_prot_process_msgbuf_rxcpl)(dhd_pub_t *dhd, int ringtype, uint32 
 
 				pkt = DHD_PKTID_TO_NATIVE(dhd, prot->pktid_rx_map, pktid, pa,
 				        len, dmah, secdma, PKTTYPE_DATA_RX);
+				if (!pkt) {
+					DHD_ERROR(("%s: received with NULL pkt\n", __FUNCTION__));
+					DHD_ERROR(("%s: ring<%s> curr_rd<%d> rd<%d> wr<%d>\n",
+						__FUNCTION__, ring->name, ring->curr_rd,
+						ring->rd, ring->wr));
+					dhd_prhex("dhd_prot_process_msgbuf_rxcpl:",
+						(volatile uchar *)msg,
+						D2HRING_RXCMPLT_ITEMSIZE, DHD_ERROR_VAL);
+					msg_len -= item_len;
+					msg_addr += item_len;
+					continue;
+				}
 #ifndef CUSTOMER_HW6
 				/* Sanity check of shinfo nrfrags */
-				if (!pkt || (dhd_check_shinfo_nrfrags(dhd, pkt, &pa, pktid)
-					!= BCME_OK)) {
+				if (dhd_check_shinfo_nrfrags(dhd, pkt, &pa, pktid) != BCME_OK) {
 					msg_len -= item_len;
 					msg_addr += item_len;
 					continue;
@@ -9059,7 +9071,10 @@ dhd_prot_ioctcmplt_process(dhd_pub_t *dhd, void *msg)
 	pkt = retbuf.va;
 #endif /* !IOCTLRESP_USE_CONSTMEM */
 	if (!pkt) {
+		msgbuf_ring_t *ring = &dhd->prot->d2hring_ctrl_cpln;
 		DHD_ERROR(("%s: received ioctl response with NULL pkt\n", __FUNCTION__));
+		DHD_ERROR(("%s: ring<%s> curr_rd<%d> rd<%d> wr<%d>\n",
+			__FUNCTION__, ring->name, ring->curr_rd, ring->rd, ring->wr));
 		dhd_prhex("dhd_prot_ioctcmplt_process:",
 			(volatile uchar *)msg, D2HRING_CTRL_CMPLT_ITEMSIZE, DHD_ERROR_VAL);
 		return;
@@ -9432,6 +9447,8 @@ BCMFASTPATH(dhd_prot_txstatus_process)(dhd_pub_t *dhd, void *msg)
 
 
 		DHD_ERROR(("%s: received txstatus with NULL pkt\n", __FUNCTION__));
+		DHD_ERROR(("%s: ring<%s> curr_rd<%d> rd<%d> wr<%d>\n",
+			__FUNCTION__, ring->name, ring->curr_rd, ring->rd, ring->wr));
 		dhd_prhex("dhd_prot_txstatus_process:", (volatile uchar *)msg,
 			D2HRING_TXCMPLT_ITEMSIZE, DHD_ERROR_VAL);
 #ifdef DHD_FW_COREDUMP
@@ -11639,6 +11656,7 @@ void
 dhd_msgbuf_iovar_timeout_dump(dhd_pub_t *dhd)
 {
 	uint32 intstatus;
+
 	if (dhd->is_sched_error) {
 		DHD_ERROR(("%s: ROT due to scheduling problem\n", __FUNCTION__));
 	}
@@ -11708,9 +11726,22 @@ dhd_msgbuf_wait_ioctl_cmplt(dhd_pub_t *dhd, uint32 len, void *buf)
 	}
 #endif /* DHD_RECOVER_TIMEOUT */
 
+#ifdef DHD_TREAT_D3ACKTO_AS_LINKDWN
+	if ((prot->ioctl_received == 0) && (timeleft == 0)) {
+		DHD_ERROR(("%s: Treating IOVAR timeout as PCIe linkdown !\n", __FUNCTION__));
+		dhd_plat_pcie_skip_config_set(TRUE);
+		dhd->bus->is_linkdown = 1;
+		dhd->bus->iovarto_as_linkdwn_cnt++;
+		dhd->hang_reason = HANG_REASON_PCIE_LINK_DOWN_RC_DETECT;
+		dhd_os_send_hang_message(dhd);
+	}
+#endif /* DHD_TREAT_D3ACKTO_AS_LINKDWN */
+
 	if (timeleft == 0 && (!dhd->dongle_trap_data) && (!dhd_query_bus_erros(dhd))) {
 		/* Dump iovar name */
 		dhd_msgbuf_dump_iovar_name(dhd);
+		/* dump deep-sleep trace */
+		dhd_dump_ds_trace_console(dhd);
 		dhd_validate_pcie_link_cbp_wlbp(dhd->bus);
 		if (dhd->bus->link_state != DHD_PCIE_ALL_GOOD) {
 			DHD_ERROR(("%s: bus->link_state:%d\n",
@@ -14647,6 +14678,13 @@ void dhd_prot_print_flow_ring(dhd_pub_t *dhd, void *msgbuf_flow_info, bool h2d,
 	msgbuf_ring_t *flow_ring = (msgbuf_ring_t *)msgbuf_flow_info;
 	uint16 rd, wr, drd = 0, dwr = 0;
 	uint32 dma_buf_len = flow_ring->max_items * flow_ring->item_len;
+
+#ifdef DHD_TREAT_D3ACKTO_AS_LINKDWN
+	if (dhd->no_pcie_access_during_dump) {
+		DHD_PRINT(("%s: no_pcie_access_during_dump is set, return \n", __FUNCTION__));
+		return;
+	}
+#endif /* DHD_TREAT_D3ACKTO_AS_LINKDWN */
 
 	if (fmt == NULL) {
 		fmt = default_fmt;
@@ -17788,7 +17826,9 @@ dhd_prot_smmu_fault_dump(dhd_pub_t *dhdp)
 #ifdef DHD_FW_COREDUMP
 	dhdp->memdump_type = DUMP_TYPE_SMMU_FAULT;
 #ifdef DNGL_AXI_ERROR_LOGGING
-	dhdp->memdump_enabled = DUMP_MEMFILE;
+	if (dhdp->memdump_enabled == DUMP_DISABLED) {
+		dhdp->memdump_enabled = DUMP_MEMFILE;
+	}
 	dhd_bus_get_mem_dump(dhdp);
 #else
 	dhdp->memdump_enabled = DUMP_MEMONLY;

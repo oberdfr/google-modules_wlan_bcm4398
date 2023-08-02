@@ -6469,6 +6469,31 @@ dhd_parse_hck_common_sw_event(bcm_xtlv_t *wl_hc)
 
 }
 
+#ifdef SKIP_COREDUMP_PKTDROP_RXHC
+static bool
+dhd_skip_coredump_for_rxhc(bcm_xtlv_t *wl_hc)
+{
+	wl_rx_hc_info_v2_t *hck_rx_stall_v2;
+	uint16 id;
+	bool ignore_coredump = FALSE;
+
+	id = ltoh16(wl_hc->id);
+
+	if (id == WL_HC_DD_RX_STALL_V2) {
+		/*  map the hck_rx_stall_v2 structure to the value of the XTLV */
+		hck_rx_stall_v2 =
+			(wl_rx_hc_info_v2_t*)wl_hc;
+		if (hck_rx_stall_v2->rx_hc_dropped_all >=
+			hck_rx_stall_v2->rx_hc_alert_th) {
+			DHD_ERROR(("Skip the coredump for continous packet drop\n"));
+			ignore_coredump = TRUE;
+		}
+	}
+
+	return ignore_coredump;
+}
+#endif /* SKIP_COREDUMP_PKTDROP_RXHC */
+
 #endif /* PARSE_DONGLE_HOST_EVENT */
 void
 dngl_host_profile_event_process(dhd_pub_t *dhdp, uint8 *event,
@@ -6679,6 +6704,11 @@ dngl_host_event_process(dhd_pub_t *dhdp, bcm_dngl_event_t *event,
 #ifdef PARSE_DONGLE_HOST_EVENT
 						dhd_parse_hck_common_sw_event(wl_hc);
 #endif /* PARSE_DONGLE_HOST_EVENT */
+#ifdef SKIP_COREDUMP_PKTDROP_RXHC
+						if (dhd_skip_coredump_for_rxhc(wl_hc) == TRUE) {
+							ignore_hc = TRUE;
+						}
+#endif /* SKIP_COREDUMP_PKTDROP_RXHC */
 #ifdef WL_CFGVENDOR_SEND_ALERT_EVENT
 						dhd_send_error_alert_event(dhdp, wl_hc);
 #endif /* WL_CFGVENDOR_SEND_ALERT_EVENT */
@@ -11297,10 +11327,13 @@ dhd_edl_mem_init(dhd_pub_t *dhd)
 	bzero(&dhd->edl_ring_mem, sizeof(dhd->edl_ring_mem));
 	ret = dhd_dma_buf_alloc(dhd, &dhd->edl_ring_mem, DHD_EDL_RING_SIZE);
 	if (ret != BCME_OK) {
-		DHD_ERROR(("%s: alloc of edl_ring_mem failed\n",
-			__FUNCTION__));
+		DHD_ERROR(("%s: alloc of edl_ring_mem size(%u) failed \n",
+			__FUNCTION__, DHD_EDL_RING_SIZE));
+		dhd->host_edl_mem_inited = FALSE;
 		return BCME_ERROR;
 	}
+	DHD_PRINT(("%s: EDL buffer allocated of size %u\n", __FUNCTION__, DHD_EDL_RING_SIZE));
+	dhd->host_edl_mem_inited = TRUE;
 	return BCME_OK;
 }
 
@@ -11311,8 +11344,11 @@ dhd_edl_mem_init(dhd_pub_t *dhd)
 void
 dhd_edl_mem_deinit(dhd_pub_t *dhd)
 {
-	if (dhd->edl_ring_mem.va != NULL)
+	if (dhd->host_edl_mem_inited && dhd->edl_ring_mem.va) {
 		dhd_dma_buf_free(dhd, &dhd->edl_ring_mem);
+		dhd->host_edl_mem_inited = FALSE;
+		DHD_PRINT(("%s: EDL buffer freed\n", __FUNCTION__));
+	}
 }
 
 int
