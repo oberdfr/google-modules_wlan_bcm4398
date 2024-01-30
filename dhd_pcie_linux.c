@@ -341,8 +341,8 @@ static int dhdpcie_smmu_init(struct pci_dev *pdev, void *smmu_cxt)
 
 	DHD_PRINT(("%s : SMMU init start\n", __FUNCTION__));
 
-	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)) ||
-		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64))) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) ||
+		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		DHD_ERROR(("%s: DMA set 64bit mask failed.\n", __FUNCTION__));
 		return -EINVAL;
 	}
@@ -2316,8 +2316,8 @@ int dhdpcie_init(struct pci_dev *pdev)
 
 #ifdef DHD_SET_PCIE_DMA_MASK_FOR_GS101
 		/* S.SLSI PCIe DMA engine cannot support 64 bit bus address. Hence, set 36 bit */
-		if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_GS101)) ||
-			dma_set_coherent_mask(&pdev->dev,
+		if (DHD_DMA_SET_MASK(pdev, DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_GS101)) ||
+			DHD_DMA_SET_COHERENT_MASK(pdev,
 				DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_GS101))) {
 			DHD_ERROR(("%s: DMA set %d bit mask failed.\n",
 				__FUNCTION__, DHD_PCIE_DMA_MASK_FOR_GS101));
@@ -2327,8 +2327,8 @@ int dhdpcie_init(struct pci_dev *pdev)
 
 #ifdef BOARD_STB
 #define DHD_PCIE_DMA_MASK_FOR_STB 64
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_STB)) ||
-			pci_set_consistent_dma_mask(pdev,
+		if (DHD_DMA_SET_MASK(pdev, DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_STB)) ||
+			DHD_DMA_SET_COHERENT_MASK(pdev,
 				DMA_BIT_MASK(DHD_PCIE_DMA_MASK_FOR_STB))) {
 			DHD_ERROR(("%s: DMA set %d bit mask failed.\n",
 				__FUNCTION__, DHD_PCIE_DMA_MASK_FOR_STB));

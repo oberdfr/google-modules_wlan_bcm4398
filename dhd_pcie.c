@@ -8365,6 +8365,15 @@ dhd_bus_perform_flr(dhd_bus_t *bus, bool force_fail)
 	int retry = 0;
 	bool in_flr_already = FALSE;
 
+	if (!bus->sih) {
+		DHD_ERROR(("%s: bus->sih is NULL! si_attach not done\n", __FUNCTION__));
+		return BCME_BADARG;
+	}
+	if (bus->is_linkdown) {
+		DHD_ERROR(("%s: pcie linkdown, return\n", __FUNCTION__));
+		return BCME_NOTUP;
+	}
+
 	DHD_PRINT(("******** Perform FLR ********\n"));
 
 	/* Kernel Panic for 4378Ax during traptest/devreset4 reload case:

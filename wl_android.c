@@ -480,9 +480,6 @@ static android_custom_dwell_time_t custom_scan_dwell[] =
 #define BUFSZ 8
 #define BUFSZN	BUFSZ + 1
 
-#define __S(x) #x
-#define S(x) __S(x)
-
 #define  MAXBANDS    2  /**< Maximum #of bands */
 #define BAND_2G_INDEX      1
 #define BAND_5G_INDEX      0
@@ -2988,7 +2985,7 @@ wl_android_reassoc_chan(struct net_device *dev, char *command, int total_len)
 	chanspec_t chanspec;
 	char pcmd[WL_PRIV_CMD_LEN + 1];
 
-	sscanf(command, "%"S(WL_PRIV_CMD_LEN)"s *", pcmd);
+	sscanf(command, "%"BCM_STR(WL_PRIV_CMD_LEN)"s *", pcmd);
 	if (total_len < (strlen(pcmd) + 1 + sizeof(android_wifi_reassoc_params_t))) {
 		WL_ERR(("Invalid parameters %s\n", command));
 		return BCME_ERROR;
@@ -3026,7 +3023,7 @@ wl_android_reassoc_freq(struct net_device *dev, char *command, int total_len)
 	chanspec_t chanspec, frequency;
 	char pcmd[WL_PRIV_CMD_LEN + 1];
 
-	sscanf(command, "%"S(WL_PRIV_CMD_LEN)"s *", pcmd);
+	sscanf(command, "%"BCM_STR(WL_PRIV_CMD_LEN)"s *", pcmd);
 	params = (command + strlen(pcmd) + 1);
 
 	/* Parse Reassoc BSSID */
@@ -3353,7 +3350,7 @@ wl_android_legacy_check_command(struct net_device *dev, char *command)
 	while (strlen(legacy_cmdlist[cnt]) > 0) {
 		if (strnicmp(command, legacy_cmdlist[cnt], strlen(legacy_cmdlist[cnt])) == 0) {
 			char cmd[WL_PRIV_CMD_LEN + 1];
-			sscanf(command, "%"S(WL_PRIV_CMD_LEN)"s ", cmd);
+			sscanf(command, "%"BCM_STR(WL_PRIV_CMD_LEN)"s ", cmd);
 			if (strlen(legacy_cmdlist[cnt]) == strlen(cmd)) {
 				return TRUE;
 			}
@@ -3461,7 +3458,7 @@ wl_android_ncho_check_command(struct net_device *dev, char *command)
 	while (strlen(ncho_cmdlist[cnt]) > 0) {
 		if (strnicmp(command, ncho_cmdlist[cnt], strlen(ncho_cmdlist[cnt])) == 0) {
 			char cmd[WL_PRIV_CMD_LEN + 1];
-			sscanf(command, "%"S(WL_PRIV_CMD_LEN)"s ", cmd);
+			sscanf(command, "%"BCM_STR(WL_PRIV_CMD_LEN)"s ", cmd);
 			if (strlen(ncho_cmdlist[cnt]) == strlen(cmd)) {
 				return TRUE;
 			}
@@ -8964,7 +8961,7 @@ wl_android_set_miracast(struct net_device *dev, char *command)
 		/* Source mode shares most configurations with sink mode.
 		 * Fall through here to avoid code duplication
 		 */
-		fallthrough;
+		BCM_FALLTHROUGH;
 	case MIRACAST_MODE_SINK:
 		/* disable internal roaming */
 		config.iovar = "roam_off";
@@ -15035,7 +15032,7 @@ wl_cfg80211_post_static_ifcreate(struct bcm_cfg80211 *cfg,
 		wdev = new_ndev->ieee80211_ptr;
 		ASSERT(wdev);
 		wdev->iftype = iface_type;
-		__dev_addr_set(new_ndev, addr, ETH_ALEN);
+		NETDEV_ADDR_SET(new_ndev, ETH_ALEN, addr, ETH_ALEN);
 	}
 
 	cfg->static_ndev_state = NDEV_STATE_FW_IF_CREATED;
@@ -15624,7 +15621,8 @@ int wl_cfg80211_wbtext_weight_config(struct net_device *ndev, char *data,
 	bwcfg->type = 0;
 	bwcfg->weight = 0;
 
-	argc = sscanf(data, "%"S(BUFSZ)"s %"S(BUFSZ)"s %"S(BUFSZ)"s", rssi, band, weight);
+	argc = sscanf(data, "%"BCM_STR(BUFSZ)"s %"BCM_STR(BUFSZ)"s %"BCM_STR(BUFSZ)"s",
+			rssi, band, weight);
 
 	if (!strcasecmp(rssi, "rssi"))
 		bwcfg->type = WNM_BSS_SELECT_TYPE_RSSI;
@@ -15712,7 +15710,7 @@ int wl_cfg80211_wbtext_table_config(struct net_device *ndev, char *data,
 	btcfg->type = 0;
 	btcfg->count = 0;
 
-	sscanf(data, "%"S(BUFSZ)"s %"S(BUFSZ)"s", rssi, band);
+	sscanf(data, "%"BCM_STR(BUFSZ)"s %"BCM_STR(BUFSZ)"s", rssi, band);
 
 	if (!strcasecmp(rssi, "rssi")) {
 		btcfg->type = WNM_BSS_SELECT_TYPE_RSSI;
@@ -15811,7 +15809,7 @@ wl_cfg80211_wbtext_delta_config(struct net_device *ndev, char *data, char *comma
 		goto exit;
 	}
 
-	argc = sscanf(data, "%"S(BUFSZ)"s %"S(BUFSZ)"s", band, delta);
+	argc = sscanf(data, "%"BCM_STR(BUFSZ)"s %"BCM_STR(BUFSZ)"s", band, delta);
 	if (BCME_BADBAND == wl_android_bandstr_to_fwband(band, &band_val)) {
 		WL_ERR(("%s: Missing band\n", __func__));
 		goto exit;

@@ -717,8 +717,9 @@ wl_cfg80211_disc_if_mgmt(struct bcm_cfg80211 *cfg,
 				* Intentional fall through to default policy
 				* as for AP and associated ifaces, both are same
 				*/
-				fallthrough;
+				BCM_FALLTHROUGH;
 			}
+			/* falls through */
 			case WL_IF_POLICY_DEFAULT: {
 				 if (sec_wl_if_type == WL_IF_TYPE_AP) {
 					WL_INFORM_MEM(("AP is active, cant support new iface\n"));
@@ -936,7 +937,11 @@ wl_cfg80211_handle_if_role_conflict(struct bcm_cfg80211 *cfg,
 #endif /* WL_IFACE_MGMT */
 
 s32
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
 wl_release_vif_macaddr(struct bcm_cfg80211 *cfg, const u8 *mac_addr, u16 wl_iftype)
+#else
+wl_release_vif_macaddr(struct bcm_cfg80211 *cfg, u8 *mac_addr, u16 wl_iftype)
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0) */
 {
 	struct net_device *ndev =  bcmcfg_to_prmry_ndev(cfg);
 	u16 org_toggle_bytes;
@@ -1471,8 +1476,8 @@ wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
 		if (ndev->ieee80211_ptr->iftype == NL80211_IFTYPE_STATION) {
 			break;
 		}
-		fallthrough;
 #endif /* WL_CFG80211_MONITOR */
+		BCM_FALLTHROUGH;
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_MESH_POINT:
 		/* Intentional fall through */
@@ -1599,7 +1604,7 @@ wl_cfg80211_cleanup_virtual_ifaces(struct bcm_cfg80211 *cfg, bool rtnl_lock_reqd
 #endif /* WL_STATIC_IF */
 			{
 				dev_close(iter->ndev);
-				WL_INFORM_MEM(("Cleaning up iface:%s \n", iter->ndev->name));
+				WL_INFORM(("Cleaning up iface:%s \n", iter->ndev->name));
 #if defined(WLAN_ACCEL_BOOT)
 				/* Trigger force reg_on to ensure clean up of virtual interface
 				* states in FW for any residual interface states, casued due to
@@ -1609,6 +1614,11 @@ wl_cfg80211_cleanup_virtual_ifaces(struct bcm_cfg80211 *cfg, bool rtnl_lock_reqd
 				" interface states in FW\n"));
 				dhd_dev_set_accel_force_reg_on(iter->ndev);
 #endif /* WLAN_ACCEL_BOOT */
+				if ((cfg->hal_state == HAL_START_IN_PROG) ||
+					(cfg->hal_state == HAL_STOP_IN_PROG)) {
+					/* hold the rtnl lock explicitly for vendor hal callers */
+					rtnl_lock_reqd = true;
+				}
 				wl_cfg80211_post_ifdel(iter->ndev, rtnl_lock_reqd, 0);
 			}
 		}
@@ -6679,8 +6689,11 @@ wl_cfg80211_ch_switch_notify(struct net_device *dev, uint16 chanspec,
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION (3, 8, 0))
 	freq = chandef.chan ? chandef.chan->center_freq : chandef.center_freq1;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2)) || defined(WL_MLO_BKPORT)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)) || defined(WL_CH_SWITCH_BKPORT)
+	/* FIXME: need to consider puncturing bitmap */
 	cfg80211_ch_switch_notify(dev, &chandef, link_id, 0);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2)) || defined(WL_MLO_BKPORT)
+	cfg80211_ch_switch_notify(dev, &chandef, link_id);
 #else
 	cfg80211_ch_switch_notify(dev, &chandef);
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(5, 20, 0) || WL_MLO_BKPORT */

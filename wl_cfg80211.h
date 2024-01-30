@@ -2082,6 +2082,13 @@ typedef struct scan_stat_cache_cores {
 } scan_stat_cache_cores_t;
 #endif /* LINKSTAT_EXT_SUPPORT */
 
+typedef enum {
+	HAL_IDLE		= 0,
+	HAL_START_IN_PROG	= 1,
+	HAL_STOP_IN_PROG	= 2,
+	HAL_STARTED		= 3
+} hal_state;
+
 /* private data of cfg80211 interface */
 struct bcm_cfg80211 {
 	struct wireless_dev *wdev;	/* representing cfg cfg80211 device */
@@ -2322,7 +2329,7 @@ struct bcm_cfg80211 {
 #endif /* WL_BCNRECV */
 	struct net_device *static_ndev;
 	uint8 static_ndev_state;
-	bool hal_started;
+	uint8 hal_state;
 	wl_wlc_version_t wlc_ver;
 	u8 scan_params_ver;
 #ifdef SUPPORT_AP_BWCTRL
@@ -3546,7 +3553,7 @@ extern struct bcm_cfg80211 *wl_get_cfg(struct net_device *ndev);
 extern s32 wl_cfg80211_set_if_band(struct net_device *ndev, int band);
 extern s32 wl_cfg80211_set_country_code(struct net_device *dev, char *country_code,
         bool notify, bool user_enforced, int revinfo);
-extern bool wl_cfg80211_is_hal_started(struct bcm_cfg80211 *cfg);
+extern uint8 wl_cfg80211_is_hal_started(struct bcm_cfg80211 *cfg);
 #ifdef WL_WIPSEVT
 extern int wl_cfg80211_wips_event(uint16 misdeauth, char* bssid);
 extern int wl_cfg80211_wips_event_ext(wl_wips_event_info_t *wips_event);

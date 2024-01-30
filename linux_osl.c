@@ -1318,7 +1318,6 @@ osl_dma_alloc_consistent(osl_t *osh, uint size, uint16 align_bits, uint *alloced
 void
 osl_dma_free_consistent(osl_t *osh, void *va, uint size, dmaaddr_t pa)
 {
-	struct pci_dev *pdev = osh->pdev;
 #ifdef BCMDMA64OSL
 	dma_addr_t paddr;
 #endif /* BCMDMA64OSL */
@@ -1330,9 +1329,9 @@ osl_dma_free_consistent(osl_t *osh, void *va, uint size, dmaaddr_t pa)
 #else
 #ifdef BCMDMA64OSL
 	PHYSADDRTOULONG(pa, paddr);
-	dma_free_coherent(&pdev->dev, size, va, paddr);
+	DHD_DMA_FREE_COHERENT(osh->pdev, size, va, paddr);
 #else
-	dma_free_coherent(&pdev->dev, size, va, (dma_addr_t)pa);
+	DHD_DMA_FREE_COHERENT(osh->pdev, size, va, (dma_addr_t)pa);
 #endif /* BCMDMA64OSL */
 #endif /* __ARM_ARCH_7A__ && !DHD_USE_COHERENT_MEM_FOR_RING */
 }
@@ -1355,7 +1354,6 @@ dmaaddr_t
 BCMFASTPATH(osl_dma_map)(osl_t *osh, void *va, uint size, int direction, void *p,
 	hnddma_seg_map_t *dmah)
 {
-	struct pci_dev *pdev = osh->pdev;
 	int dir;
 	dmaaddr_t ret_addr;
 	dma_addr_t map_addr;
@@ -1369,9 +1367,9 @@ BCMFASTPATH(osl_dma_map)(osl_t *osh, void *va, uint size, int direction, void *p
 	/* For Rx buffers, keep direction as bidirectional to handle packet fetch cases */
 	dir = (direction == DMA_RX)? DMA_RXTX: direction;
 
-	map_addr = dma_map_single(&pdev->dev, va, size, dir);
+	map_addr = DHD_DMA_MAP_SINGLE(osh->pdev, va, size, dir);
 
-	ret = dma_mapping_error(&pdev->dev, map_addr);
+	ret = DHD_DMA_MAPPING_ERROR(osh->pdev, map_addr);
 
 	if (ret) {
 		OSL_PRINT(("%s: Failed to map memory\n", __FUNCTION__));
@@ -1394,7 +1392,6 @@ BCMFASTPATH(osl_dma_map)(osl_t *osh, void *va, uint size, int direction, void *p
 void
 BCMFASTPATH(osl_dma_unmap)(osl_t *osh, dmaaddr_t pa, uint size, int direction)
 {
-	struct pci_dev *pdev = osh->pdev;
 	int dir;
 #ifdef BCMDMA64OSL
 	dma_addr_t paddr;
@@ -1414,9 +1411,9 @@ BCMFASTPATH(osl_dma_unmap)(osl_t *osh, dmaaddr_t pa, uint size, int direction)
 
 #ifdef BCMDMA64OSL
 	PHYSADDRTOULONG(pa, paddr);
-	dma_unmap_single(&pdev->dev, paddr, size, dir);
+	DHD_DMA_UNMAP_SINGLE(osh->pdev, paddr, size, dir);
 #else /* BCMDMA64OSL */
-	dma_unmap_single(&pdev->dev, (uint32)pa, size, dir);
+	DHD_DMA_UNMAP_SINGLE(osh->pdev, (uint32)pa, size, dir);
 #endif /* BCMDMA64OSL */
 
 	DMA_UNLOCK(osh);
@@ -1988,7 +1985,7 @@ timer_cb_compat(struct timer_list *tl)
 /* Note: All timer api's are thread unsafe and should be protected with locks by caller */
 
 osl_timer_t *
-osl_timer_init(osl_t *osh, const char *name, void (*fn)(ulong arg), ulong arg)
+osl_timer_init(osl_t *osh, const char *name, void (*fn)(void *arg), void *arg)
 {
 	osl_timer_t *t;
 	BCM_REFERENCE(fn);
@@ -2010,6 +2007,11 @@ osl_timer_init(osl_t *osh, const char *name, void (*fn)(ulong arg), ulong arg)
 		strcpy(t->name, name);
 	}
 #endif
+	/* suppress error the mismatched function pointer cast.
+	 * from void (*)(void *) to void (*)(ulong)
+	 * void pointer is compatible with ulong.
+	 */
+	GCC_DIAGNOSTIC_PUSH_SUPPRESS_FN_TYPE();
 
 	init_timer_compat(t->timer, (linux_timer_fn)fn, arg);
 

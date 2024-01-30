@@ -2091,7 +2091,7 @@ wl_cfgnan_set_if_addr(struct bcm_cfg80211 *cfg)
 	}
 #ifdef WL_NMI_IF
 	/* copy new nmi addr to dedicated NMI interface */
-	__dev_addr_set(cfg->nmi_ndev, if_addr.octet, ETHER_ADDR_LEN);
+	eacopy(if_addr.octet, cfg->nmi_ndev->dev_addr);
 #endif /* WL_NMI_IF */
 	return ret;
 fail:

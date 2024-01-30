@@ -5552,8 +5552,9 @@ wl_show_roam_cache_update_event(const char *name, uint status,
 					(rmc_candidate_info_v1_t *)(val_xtlv->data);
 				candidate_info->ctl_channel = wf_channel2chspec(
 					candidate_info->ctl_channel, WL_CHANSPEC_BW_20);
+				BCM_FALLTHROUGH;
 			}
-				fallthrough;
+			/* fall through */
 			case WL_RMC_RPT_XTLV_CANDIDATE_INFO_V2:
 			case WL_RMC_RPT_XTLV_USER_CACHE_INFO_V2:
 			{
@@ -7158,7 +7159,8 @@ wl_process_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, uint pktlen
 				event->ifname));
 		}
 #endif /* PCIE_FULL_DONGLE */
-		fallthrough;
+		/* falls through */
+		BCM_FALLTHROUGH;
 	case WLC_E_DEAUTH:
 	case WLC_E_DEAUTH_IND:
 	case WLC_E_DISASSOC:
@@ -7205,7 +7207,8 @@ wl_process_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, uint pktlen
 			ifp->post_roam_evt = FALSE;
 		}
 #endif /* DHD_POST_EAPOL_M1_AFTER_ROAM_EVT */
-		fallthrough;
+		/* fall through */
+		BCM_FALLTHROUGH;
 	default:
 		*ifidx = dhd_ifname2idx(dhd_pub->info, event->ifname);
 		/* push up to external supp/auth */
@@ -9778,7 +9781,7 @@ deinit_dhd_timeouts(dhd_pub_t *pub)
 }
 
 static void
-dhd_cmd_timeout(ulong ctx)
+dhd_cmd_timeout(void *ctx)
 {
 	dhd_pub_t *pub = (dhd_pub_t *)ctx;
 	unsigned long flags;
@@ -9917,7 +9920,7 @@ __dhd_stop_join_timer(dhd_pub_t *pub)
 }
 
 static void
-dhd_join_timeout(ulong ctx)
+dhd_join_timeout(void *ctx)
 {
 	dhd_pub_t *pub = (dhd_pub_t *)ctx;
 	unsigned long flags;
@@ -10042,7 +10045,7 @@ dhd_clear_join_error(dhd_pub_t *pub, uint32 mask)
 }
 
 static void
-dhd_scan_timeout(ulong ctx)
+dhd_scan_timeout(void *ctx)
 {
 	dhd_pub_t *pub = (dhd_pub_t *)ctx;
 	unsigned long flags;
@@ -10168,7 +10171,7 @@ exit_null:
 }
 
 static void
-dhd_bus_timeout(ulong ctx)
+dhd_bus_timeout(void *ctx)
 {
 	dhd_pub_t *pub = (dhd_pub_t *)ctx;
 	unsigned long flags;

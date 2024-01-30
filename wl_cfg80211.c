@@ -1563,9 +1563,6 @@ static const rsn_akm_wpa_auth_entry_t rsn_akm_wpa_auth_lookup_tbl[] = {
 #define BUFSZ 8
 #define BUFSZN	BUFSZ + 1
 
-#define __S(x) #x
-#define S(x) __S(x)
-
 #define SOFT_AP_IF_NAME         "swlan0"
 
 /* watchdog timer for disconnecting when fw is not associated for FW_ASSOC_WATCHDOG_TIME ms */
@@ -1842,9 +1839,9 @@ wl_chspec_to_legacy(chanspec_t chspec)
 	return lchspec;
 }
 
-bool wl_cfg80211_is_hal_started(struct bcm_cfg80211 *cfg)
+uint8 wl_cfg80211_is_hal_started(struct bcm_cfg80211 *cfg)
 {
-	return cfg->hal_started;
+	return cfg->hal_state;
 }
 
 /* given a chanspec value, do the endian and chanspec version conversion to
@@ -2830,7 +2827,8 @@ _wl_cfg80211_add_if(struct bcm_cfg80211 *cfg,
 			/* Intentionally fall through for unsupported interface
 			 * handling when firmware doesn't support p2p
 			 */
-			fallthrough;
+			/* falls through */
+			BCM_FALLTHROUGH;
 		default:
 			WL_ERR(("Unsupported interface type\n"));
 			err = -ENOTSUPP;
@@ -3965,7 +3963,7 @@ wl_cfg80211_post_ifcreate(struct net_device *ndev,
 		new_ndev->ieee80211_ptr = wdev;
 		SET_NETDEV_DEV(new_ndev, wiphy_dev(wdev->wiphy));
 
-		__dev_addr_set(new_ndev, addr, ETH_ALEN);
+		NETDEV_ADDR_SET(new_ndev, ETH_ALEN, addr, ETH_ALEN);
 		if (wl_cfg80211_register_if(cfg, event->ifidx, new_ndev, rtnl_lock_reqd)
 			!= BCME_OK) {
 			WL_ERR(("IFACE register failed \n"));
@@ -4136,8 +4134,9 @@ wl_cfg80211_post_ifdel(struct net_device *ndev, bool rtnl_lock_reqd, s32 ifidx)
 	} else
 #endif /* WL_STATIC_IF */
 	{
-		WL_INFORM_MEM(("[%s] cfg80211_remove_if ifidx:%d, vif_count:%d\n",
-			ndev->name, ifidx, cfg->vif_count));
+		WL_INFORM_MEM(("[%s] cfg80211_remove_if ifidx:%d, vif_count:%d, hal_state %d\n",
+			ndev->name, ifidx, cfg->vif_count, cfg->hal_state));
+
 		wl_cfg80211_remove_if(cfg, ifidx, ndev, rtnl_lock_reqd);
 		cfg->bss_pending_op = FALSE;
 	}
@@ -4306,8 +4305,10 @@ wl_cfg80211_del_iface(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	struct net_device *ndev = NULL;
+	struct net_info *netinfo = NULL;
 	s32 ret = BCME_OK;
 	s32 bsscfg_idx = 1;
+	s32 ifidx = 0;
 	long timeout;
 	u16 wl_iftype;
 	u16 wl_mode;
@@ -4320,10 +4321,22 @@ wl_cfg80211_del_iface(struct wiphy *wiphy, struct wireless_dev *wdev)
 		wl_cfgscan_cancel_scan(cfg);
 	}
 
-	bsscfg_idx = wl_get_bssidx_by_wdev(cfg, wdev);
+	netinfo = wl_get_netinfo_by_wdev(cfg, wdev);
+	if (!netinfo) {
+		WL_ERR(("net_info ptr is NULL \n"));
+	        return -EINVAL;
+	}
+
+	bsscfg_idx = netinfo->bssidx;
 	if (bsscfg_idx <= 0) {
 		/* validate bsscfgidx */
 		WL_ERR(("Wrong bssidx! \n"));
+		return -EINVAL;
+	}
+
+	ifidx = netinfo->ifidx;
+	if ((ifidx <= 0) || (ifidx > WL_MAX_IFS)) {
+		WL_ERR(("Invalid IF idx for iface:%s\n", ndev->name));
 		return -EINVAL;
 	}
 
@@ -4394,20 +4407,20 @@ wl_cfg80211_del_iface(struct wiphy *wiphy, struct wireless_dev *wdev)
 exit:
 	if (ret < 0) {
 		WL_ERR(("iface del failed:%d\n", ret));
+	}
+
+	/* clean up host data structure irrespective of FW state.
+	 * FW could be down due to bus errors.
+	 */
 #ifdef WL_STATIC_IF
-		if (IS_CFG80211_STATIC_IF(cfg, ndev)) {
-			/*
-			 * For static interface, clean up the host data,
-			 * irrespective of fw status. For dynamic
-			 * interfaces it gets cleaned from dhd_stop context
-			 */
-			wl_cfg80211_post_static_ifdel(cfg, ndev);
-		}
+	if (IS_CFG80211_STATIC_IF(cfg, ndev)) {
+		wl_cfg80211_post_static_ifdel(cfg, ndev);
+	} else
 #endif /* WL_STATIC_IF */
-	} else {
-		ret = wl_cfg80211_post_ifdel(ndev, false, cfg->if_event_info.ifidx);
-		if (unlikely(ret)) {
+	{
+		if (wl_cfg80211_post_ifdel(ndev, false, ifidx) != BCME_OK) {
 			WL_ERR(("post_ifdel failed\n"));
+			ret = BCME_ERROR;
 		}
 	}
 
@@ -8844,10 +8857,16 @@ wl_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
 #endif /* MFP */
 }
 
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && defined(BCN_PROT_AP)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)) || defined(WL_MLO_BKPORT)
 static s32
-wl_cfg80211_set_default_beacon_key(struct wiphy *wiphy,
-	struct net_device *dev, u8 key_idx)
+wl_cfg80211_set_default_beacon_key(struct wiphy *wiphy, struct net_device *dev,
+	int link_id, u8 key_idx)
+#else
+static s32
+wl_cfg80211_set_default_beacon_key(struct wiphy *wiphy,	struct net_device *dev, u8 key_idx)
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0) || WL_MLO_BKPORT */
 {
 	/* key_idx is updated from the wsec_key plumb context. The iovar primary_key
 	 * could be "extended" to update default_beacon_key if there is a need. As of now,
@@ -9290,7 +9309,8 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 				WL_DBG(("RX Rate %d Mbps\n", (sta->rx_rate / 1000)));
 			}
 			/* go through to get another information */
-			fallthrough;
+			/* falls through */
+			BCM_FALLTHROUGH;
 		case WL_IF_TYPE_P2P_GC:
 		case WL_IF_TYPE_P2P_DISC:
 			if ((err = wl_cfg80211_get_rssi(dev, cfg, link_idx, &rssi)) != BCME_OK) {
@@ -9319,7 +9339,8 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 			}
 #endif /* SUPPORT_RSSI_SUM_REPORT && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)) */
 			/* go through to get another information */
-			fallthrough;
+			/* falls through */
+			BCM_FALLTHROUGH;
 		case WL_IF_TYPE_P2P_GO:
 #ifdef WL_RATE_INFO
 			/* Get the current tx/rx rate */
@@ -11484,6 +11505,11 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
 	u32 id;
 	bool ack = false;
 	s8 eabuf[ETHER_ADDR_STR_LEN];
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)) || defined(WL_MLO_BKPORT)
+	struct net_info *netinfo = NULL;
+	wl_mlo_link_t *linkinfo = NULL;
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)) || defined(WL_MLO_BKPORT) */
+
 
 	WL_DBG(("Enter \n"));
 
@@ -11519,6 +11545,18 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
 	}
 
 	WL_DBG(("TX target bssidx=%d\n", bssidx));
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)) || defined(WL_MLO_BKPORT)
+	netinfo = wl_get_netinfo_by_netdev(cfg, dev);
+	if (netinfo && netinfo->mlinfo.num_links) {
+		linkinfo = wl_cfg80211_get_ml_linkinfo_by_linkid(cfg, netinfo,
+				params->link_id);
+		if (linkinfo && linkinfo->link_idx) {
+			WL_INFORM_MEM(("Action frame on non primary link_idx %d\n",
+						linkinfo->link_idx));
+		}
+	}
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0)) || defined(WL_MLO_BKPORT) */
 
 	if (p2p_is_on(cfg)) {
 		/* Suspend P2P discovery search-listen to prevent it from changing the
@@ -12759,13 +12797,22 @@ void wl_config_custom_regulatory(struct wiphy *wiphy)
 #if defined(WL_SELF_MANAGED_REGDOM) && \
 	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
 	/* Use self managed regulatory domain */
-	wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
+	wiphy->regulatory_flags |=
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(6, 1, 38))
+		REGULATORY_IGNORE_STALE_KICKOFF |
+#endif /* LINUX_VERSION_CODE <= KERNEL_VERSION(6, 1, 38) */
+		REGULATORY_WIPHY_SELF_MANAGED;
 	WL_DBG(("Self managed regdom\n"));
 	return;
 #else /* WL_SELF_MANAGED_REGDOM && KERNEL >= 4.0 */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
-	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
+	wiphy->regulatory_flags |=
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) &&
+	(LINUX_VERSION_CODE <= KERNEL_VERSION(6, 1, 38))
+		REGULATORY_IGNORE_STALE_KICKOFF |
+#endif /* LINUX_VERSION_CODE >= (3, 19, 0) && LINUX_VERSION_CODE <= (6, 1, 38) */
+		REGULATORY_CUSTOM_REG;
 #else /* KERNEL VER >= 3.14 */
 	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0) */
@@ -12994,6 +13041,12 @@ static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev
 	/* Workaround for a cfg80211 bug */
 	wdev->wiphy->flags &= ~WIPHY_FLAG_ENFORCE_COMBINATIONS;
 #endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2)) || defined(WL_MLO_BKPORT)
+	if (!mlo_sta_disable) {
+		wdev->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
+	}
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2) || WL_MLO_BKPORT */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(SUPPORT_RANDOM_MAC_SCAN)
 	wdev->wiphy->features |= (NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |
@@ -15168,7 +15221,8 @@ wl_handle_assoc_events(struct bcm_cfg80211 *cfg,
 			/* Update latest bssid */
 			wl_update_prof(cfg, as.ndev, NULL,
 				(const void *)&e->addr, WL_PROF_LATEST_BSSID);
-			fallthrough;
+			/* Intentional fall through */
+			BCM_FALLTHROUGH;
 		case WLC_E_ASSOC:
 			wl_get_auth_assoc_status(cfg, as.ndev, e, data);
 #ifdef AUTH_ASSOC_STATUS_EXT
@@ -15188,7 +15242,8 @@ wl_handle_assoc_events(struct bcm_cfg80211 *cfg,
 		case WLC_E_DEAUTH_IND:
 		case WLC_E_DISASSOC_IND:
 			wl_cfg80211_handle_deauth_ind(cfg, &as);
-			fallthrough;
+			/* intentional fall through */
+			BCM_FALLTHROUGH;
 		case WLC_E_DEAUTH:
 			as.link_action = wl_set_link_action(assoc_state, false);
 			break;
