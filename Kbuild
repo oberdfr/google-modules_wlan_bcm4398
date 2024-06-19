@@ -352,7 +352,8 @@ ifneq ($(CONFIG_SOC_GOOGLE),)
         # PCIE CPL TIMEOUT WAR
 	# DHDCFLAGS += -DDHD_TREAT_D3ACKTO_AS_LINKDWN
 	# Skip coredump for certain health check traps
-	DHDCFLAGS += -DDHD_SKIP_COREDUMP_ON_HC
+	# temporary enable it for the check
+	#DHDCFLAGS += -DDHD_SKIP_COREDUMP_ON_HC
 	# Skip coredump for older chip revs
 	DHDCFLAGS += -DDHD_SKIP_COREDUMP_OLDER_CHIPS
 	# Skip coredump for continousy pkt drop health check
