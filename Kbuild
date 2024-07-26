@@ -334,7 +334,6 @@ ifneq ($(CONFIG_SOC_GOOGLE),)
 	DHDCFLAGS += -DCLEAN_IRQ_AFFINITY_HINT
 	DHDCFLAGS += -DIRQ_AFFINITY_BIG_CORE=8
 	DHDCFLAGS += -DIRQ_AFFINITY_SMALL_CORE=7
-	DHDCFLAGS += -DWAKEUP_KSOFTIRQD_POST_NAPI_SCHEDULE
 	DHDCFLAGS += -DDHD_BUS_BUSY_TIMEOUT=5000
 	# MSI supported in GOOGLE SOC
 	DHDCFLAGS += -DDHD_MSI_SUPPORT
@@ -353,8 +352,7 @@ ifneq ($(CONFIG_SOC_GOOGLE),)
         # PCIE CPL TIMEOUT WAR
 	# DHDCFLAGS += -DDHD_TREAT_D3ACKTO_AS_LINKDWN
 	# Skip coredump for certain health check traps
-	# temporary enable it for the check
-	#DHDCFLAGS += -DDHD_SKIP_COREDUMP_ON_HC
+	DHDCFLAGS += -DDHD_SKIP_COREDUMP_ON_HC
 	# Skip coredump for older chip revs
 	DHDCFLAGS += -DDHD_SKIP_COREDUMP_OLDER_CHIPS
 	# Skip coredump for continousy pkt drop health check
@@ -898,6 +896,7 @@ endif
 DHDCFLAGS += -DENABLE_INSMOD_NO_FW_LOAD
 
 ifeq ($(DRIVER_TYPE),y)
+  DHDCFLAGS += -DWAKEUP_KSOFTIRQD_POST_NAPI_SCHEDULE
   DHDCFLAGS += -DUSE_LATE_INITCALL_SYNC
   # Use kernel strlcpy() implementation instead of one, defined in bcmstdlib_s.c
   DHDCFLAGS += -DBCM_USE_PLATFORM_STRLCPY
