@@ -332,17 +332,22 @@ ifneq ($(CONFIG_SOC_GOOGLE),)
 	DHDCFLAGS += -DRESCHED_STREAK_MAX_HIGH=20
 	DHDCFLAGS += -DRESCHED_STREAK_MAX_LOW=2
 	DHDCFLAGS += -DCLEAN_IRQ_AFFINITY_HINT
+	DHDCFLAGS += -DIRQ_AFFINITY_SMALL_CORE=0
 	DHDCFLAGS += -DIRQ_AFFINITY_BIG_CORE=8
-	DHDCFLAGS += -DIRQ_AFFINITY_SMALL_CORE=7
+	DHDCFLAGS += -DCPU_IRQ_AFFINITY
 	DHDCFLAGS += -DDHD_BUS_BUSY_TIMEOUT=5000
 	# MSI supported in GOOGLE SOC
 	DHDCFLAGS += -DDHD_MSI_SUPPORT
 	# Tx/Rx tasklet bounds
-	DHDCFLAGS += -DDHD_TX_CPL_BOUND=64
-	DHDCFLAGS += -DDHD_TX_POST_BOUND=128
-	DHDCFLAGS += -DDHD_RX_CPL_POST_BOUND=96
-	DHDCFLAGS += -DDHD_CTRL_CPL_POST_BOUND=16
-	DHDCFLAGS += -DDHD_LB_TXBOUND=32
+	# Currently these bounds will be taken default value from the code
+	# These need to be tuned per platform to reduce DPC time without
+	# tput regression
+	#DHDCFLAGS += -DDHD_TX_CPL_BOUND=512
+	#DHDCFLAGS += -DDHD_TX_POST_BOUND=128
+	#DHDCFLAGS += -DDHD_RX_CPL_POST_BOUND=96
+	#DHDCFLAGS += -DDHD_CTRL_CPL_POST_BOUND=8
+	#DHDCFLAGS += -DDHD_LB_TXBOUND=32
+
 	# Detect NON DMA M2M corruption (MFG only)
 	DHDCFLAGS += -DDHD_NON_DMA_M2M_CORRUPTION
 	# Detect FW Memory Corruption (MFG only)
@@ -357,6 +362,12 @@ ifneq ($(CONFIG_SOC_GOOGLE),)
 	DHDCFLAGS += -DDHD_SKIP_COREDUMP_OLDER_CHIPS
 	# Skip coredump for continousy pkt drop health check
 	DHDCFLAGS += -DSKIP_COREDUMP_PKTDROP_RXHC
+	# Boost host cpufreq to max for peak tput. default is false
+	DHDCFLAGS += -DDHD_HOST_CPUFREQ_BOOST
+	# Boost host cpufreq to max for peak tput. default is true
+	DHDCFLAGS += -DDHD_HOST_CPUFREQ_BOOST_DEFAULT_ENAB
+	# Force all CPUs to run at MAX frequencies
+	DHDCFLAGS += -DDHD_FORCE_MAX_CPU_FREQ
 endif
 endif
 

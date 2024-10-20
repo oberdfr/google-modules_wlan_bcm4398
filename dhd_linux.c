@@ -334,6 +334,20 @@ const uint8 wme_fifo2ac[] = { 0, 1, 2, 3, 1, 1 };
 const uint8 prio2fifo[8] = { 1, 0, 0, 1, 2, 2, 3, 3 };
 #define WME_PRIO2AC(prio)  wme_fifo2ac[prio2fifo[(prio)]]
 
+#ifdef DHD_FORCE_MAX_CPU_FREQ
+uint dhd_force_max_cpu_freq = 1;
+#else
+uint dhd_force_max_cpu_freq = 0;
+#endif /* DHD_FORCE_MAX_CPU_FREQ */
+module_param(dhd_force_max_cpu_freq, int, 0644);
+
+#ifdef CPU_IRQ_AFFINITY
+extern uint affinity_big_core;
+extern uint affinity_small_core;
+module_param(affinity_big_core, int, 0644);
+module_param(affinity_small_core, int, 0644);
+#endif /* CPU_IRQ_AFFINITY */
+
 #ifdef ARP_OFFLOAD_SUPPORT
 void aoe_update_host_ipv4_table(dhd_pub_t *dhd_pub, u32 ipa, bool add, int idx);
 static int dhd_inetaddr_notifier_call(struct notifier_block *this,
